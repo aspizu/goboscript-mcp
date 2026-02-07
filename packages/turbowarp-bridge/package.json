@@ -1,7 +1,7 @@
 {
-    "name": "@goboscript/userscript",
+    "name": "@goboscript/turbowarp-bridge",
     "version": "0.1.0",
-    "main": "dist/userscript.js",
+    "main": "dist/turbowarp-bridge.js",
     "type": "module",
     "scripts": {
         "build": "bun build src/index.ts --outdir dist --target browser --format esm --minify --outfile userscript.js"
