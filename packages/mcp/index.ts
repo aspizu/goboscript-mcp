@@ -41,5 +41,4 @@ mcpServer.registerTool(
 export async function startMCPServer() {
     const transport = new StdioServerTransport()
     await mcpServer.connect(transport)
-    console.log("MCP server running on stdio")
 }
