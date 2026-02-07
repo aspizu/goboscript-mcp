@@ -1,9 +1,5 @@
-import {io, Socket} from "socket.io-client"
-// Import types from the socket server package
-import type * as SocketTypes from "../socket/socket"
+import {io} from "socket.io-client"
 
-export function connectToServer(
-    url: string,
-): Socket<SocketTypes.ServerToClientEvents, SocketTypes.ClientToServerEvents> {
-    return io(url)
-}
+const socket = io("http://127.0.0.1:3000")
+
+console.log("hello from goboscript mcp turbowarp bridge")

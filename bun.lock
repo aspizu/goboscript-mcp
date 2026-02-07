@@ -26,6 +26,7 @@
     "packages/mcp": {
       "name": "@goboscript/mcp",
       "dependencies": {
+        "@goboscript/socket": "workspace:*",
         "@modelcontextprotocol/sdk": "^1.26.0",
         "zod": "^4.3.6",
       },
@@ -37,8 +38,8 @@
         "socket.io": "^4.8.3",
       },
     },
-    "packages/userscript": {
-      "name": "@goboscript/userscript",
+    "packages/turbowarp-bridge": {
+      "name": "@goboscript/turbowarp-bridge",
       "version": "0.1.0",
       "dependencies": {
         "socket.io-client": "^4.7.5",
@@ -52,7 +53,7 @@
 
     "@goboscript/socket": ["@goboscript/socket@workspace:packages/socket"],
 
-    "@goboscript/userscript": ["@goboscript/userscript@workspace:packages/userscript"],
+    "@goboscript/turbowarp-bridge": ["@goboscript/turbowarp-bridge@workspace:packages/turbowarp-bridge"],
 
     "@hono/node-server": ["@hono/node-server@1.19.9", "", { "peerDependencies": { "hono": "^4" } }, "sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw=="],
 

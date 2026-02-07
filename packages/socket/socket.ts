@@ -1,5 +1,5 @@
 import {Server as Engine} from "@socket.io/bun-engine"
-import {Server} from "socket.io"
+import {Server, Socket} from "socket.io"
 
 /** Severity level for project log messages. */
 export type LogLevel = "log" | "warn" | "error"
@@ -34,6 +34,30 @@ export interface InterServerEvents {}
 /** Per-socket data store. */
 export interface SocketData {}
 
+// Singleton for managing the active TurboWarp bridge connection
+class TurboWarpConnectionManager {
+    private activeSocket: Socket<ServerToClientEvents, ClientToServerEvents> | null =
+        null
+
+    getActiveSocket(): Socket<ServerToClientEvents, ClientToServerEvents> | null {
+        return this.activeSocket
+    }
+
+    setActiveSocket(socket: Socket<ServerToClientEvents, ClientToServerEvents>): void {
+        // Disconnect any existing connection
+        if (this.activeSocket && this.activeSocket.connected) {
+            this.activeSocket.disconnect()
+        }
+        this.activeSocket = socket
+    }
+
+    clearActiveSocket(): void {
+        this.activeSocket = null
+    }
+}
+
+export const turboWarpManager = new TurboWarpConnectionManager()
+
 // Initialize Socket.IO with Bun engine
 export const io = new Server<
     ClientToServerEvents,
@@ -54,27 +78,31 @@ io.bind(engine)
 
 // Socket.IO connection handling
 io.on("connection", (socket) => {
-    console.log(`Socket.IO client connected: ${socket.id}`)
+    // Only allow one active connection
+    const existingSocket = turboWarpManager.getActiveSocket()
+    if (existingSocket && existingSocket.connected) {
+        socket.disconnect()
+        return
+    }
+
+    turboWarpManager.setActiveSocket(socket)
 
     socket.on("loadProject", (path, ack) => {
-        console.log(`loadProject: ${path}`)
         // TODO: implement project loading
         ack(true)
     })
 
     socket.on("startProject", (ack) => {
-        console.log("startProject")
         // TODO: implement project start
         ack(true)
     })
 
     socket.on("stopProject", (ack) => {
-        console.log("stopProject")
         // TODO: implement project stop
         ack(true)
     })
 
     socket.on("disconnect", () => {
-        console.log(`Socket.IO client disconnected: ${socket.id}`)
+        turboWarpManager.clearActiveSocket()
     })
 })

@@ -8,6 +8,7 @@
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.26.0",
+        "@goboscript/socket": "workspace:*",
         "zod": "^4.3.6"
     }
 }

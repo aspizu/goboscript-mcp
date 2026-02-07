@@ -1,10 +1,10 @@
 {
     "name": "@goboscript/turbowarp-bridge",
     "version": "0.1.0",
-    "main": "dist/turbowarp-bridge.js",
+    "main": "dist/index.js",
     "type": "module",
     "scripts": {
-        "build": "bun build src/index.ts --outdir dist --target browser --format esm --minify --outfile userscript.js"
+        "build": "bun build index.ts --outdir dist --target browser --format iife --minify --outfile index.js"
     },
     "dependencies": {
         "socket.io-client": "^4.7.5"

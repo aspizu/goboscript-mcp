@@ -1,2 +1,2 @@
-start:
-    cd packages/app && bun run index.ts start --host 127.0.0.1 --port 3000
+install-bridge:
+    cd packages/turbowarp-bridge && bun run build && cp dist/index.js /mnt/c/Users/$USER/AppData/Roaming/turbowarp-desktop/userscript.js
