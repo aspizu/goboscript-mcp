@@ -1,5 +1,5 @@
 export {startSocketServer} from "./server"
-export {engine, io, turboWarpManager} from "./socket"
+export {engine, io, turboWarpBridge} from "./socket"
 export type {
     BlockExecutedEvent,
     ClientToServerEvents,

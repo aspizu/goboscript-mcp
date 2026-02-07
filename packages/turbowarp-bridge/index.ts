@@ -1,10 +1,12 @@
 import {io, type Socket} from "socket.io-client"
 import type {ClientToServerEvents, ServerToClientEvents} from "../socket/socket"
 
-const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
-    "http://127.0.0.1:3000",
-    {transports: ["websocket"], upgrade: false},
-)
+const mcpServerUrl = "http://127.0.0.1:3000"
+
+const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(mcpServerUrl, {
+    transports: ["websocket"],
+    upgrade: false,
+})
 
 socket.on("connect", () => {
     console.log("turbowarp-bridge: Connected to MCP server")
@@ -16,12 +18,10 @@ socket.on("disconnect", () => {
 
 socket.on("loadProject", async (path, ack) => {
     try {
-        const fileID = await EditorPreload.getInitialFile()
-        if (fileID === null) {
-            throw new Error("No project file found in EditorPreload")
-        }
-        const file = await EditorPreload.getFile(fileID)
+        const response = await fetch(`${mcpServerUrl}/project.sb3`)
+        const file = await response.arrayBuffer()
         await vm.loadProject(file)
+        console.log(`turbowarp-bridge: loaded ${path} (${file.byteLength} bytes)`)
         ack(true)
     } catch (error) {
         console.error("turbowarp-bridge: Failed to load project", error)

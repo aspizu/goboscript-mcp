@@ -35,15 +35,24 @@ export interface InterServerEvents {}
 export interface SocketData {}
 
 // Singleton for managing the active TurboWarp bridge connection
-class TurboWarpConnectionManager {
+class TurboWarpBridge {
     private activeSocket: Socket<ClientToServerEvents, ServerToClientEvents> | null =
         null
+    private _projectPath: string = ""
 
-    getActiveSocket(): Socket<ClientToServerEvents, ServerToClientEvents> | null {
+    get socket(): Socket<ClientToServerEvents, ServerToClientEvents> | null {
         return this.activeSocket
     }
 
-    setActiveSocket(socket: Socket<ClientToServerEvents, ServerToClientEvents>): void {
+    get projectPath(): string {
+        return this._projectPath
+    }
+
+    set projectPath(path: string) {
+        this._projectPath = path
+    }
+
+    connect(socket: Socket<ClientToServerEvents, ServerToClientEvents>): void {
         // Disconnect any existing connection
         if (this.activeSocket && this.activeSocket.connected) {
             this.activeSocket.disconnect()
@@ -51,12 +60,13 @@ class TurboWarpConnectionManager {
         this.activeSocket = socket
     }
 
-    clearActiveSocket(): void {
+    disconnect(): void {
         this.activeSocket = null
+        this._projectPath = ""
     }
 }
 
-export const turboWarpManager = new TurboWarpConnectionManager()
+export const turboWarpBridge = new TurboWarpBridge()
 
 // Initialize Socket.IO with Bun engine
 export const io = new Server<
@@ -79,15 +89,15 @@ io.bind(engine)
 // Socket.IO connection handling
 io.on("connection", (socket) => {
     // Only allow one active connection
-    const existingSocket = turboWarpManager.getActiveSocket()
+    const existingSocket = turboWarpBridge.socket
     if (existingSocket && existingSocket.connected) {
         socket.disconnect()
         return
     }
 
-    turboWarpManager.setActiveSocket(socket)
+    turboWarpBridge.connect(socket)
 
     socket.on("disconnect", () => {
-        turboWarpManager.clearActiveSocket()
+        turboWarpBridge.disconnect()
     })
 })

@@ -1,4 +1,4 @@
-import {engine} from "./socket"
+import {engine, turboWarpBridge} from "./socket"
 
 export interface SocketServerOptions {
     host?: string
@@ -13,7 +13,20 @@ export function startSocketServer(options: SocketServerOptions = {}) {
         hostname: host,
         port,
         ...engine.handler(),
-        idleTimeout: 30,
+        async fetch(request, server) {
+            const url = new URL(request.url)
+            if (url.pathname.startsWith("/socket.io")) {
+                return engine.handleRequest(request, server)
+            }
+            if (url.pathname.startsWith("/project.sb3")) {
+                const buf = await Bun.file(turboWarpBridge.projectPath).arrayBuffer()
+                return new Response(buf, {
+                    headers: {
+                        "Content-Type": "application/octet-stream",
+                    },
+                })
+            }
+        },
     })
     return server
 }

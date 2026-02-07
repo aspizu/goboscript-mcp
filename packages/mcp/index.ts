@@ -1,7 +1,9 @@
-import {turboWarpManager} from "@goboscript/socket"
+import {turboWarpBridge} from "@goboscript/socket"
 import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js"
 import {StdioServerTransport} from "@modelcontextprotocol/sdk/server/stdio.js"
 import {$} from "bun"
+import * as FS from "node:fs/promises"
+import * as Path from "node:path"
 import {z} from "zod"
 
 // Initialize MCP server
@@ -39,12 +41,19 @@ mcpServer.registerTool(
         const stderr = result.stderr.toString("utf-8")
         const success = result.exitCode === 0
 
-        const content = [
-            {
+        const content = []
+
+        if (success) {
+            content.push({
                 type: "text" as const,
-                text: `Build ${success ? "succeeded" : "failed"} for path: ${path}`,
-            },
-        ]
+                text: `Build successfully created at: ${path}/${Path.basename(path)}.sb3`,
+            })
+        } else {
+            content.push({
+                type: "text" as const,
+                text: `Build failed`,
+            })
+        }
 
         if (stdout) {
             content.push({
@@ -66,15 +75,19 @@ mcpServer.registerTool(
 
 // Load project tool
 mcpServer.registerTool(
-    "loadProject",
+    "load",
     {
         description: "Load a .sb3 project file in the connected TurboWarp bridge",
         inputSchema: {
-            path: z.string().min(1).describe("Absolute path to the .sb3 project file"),
+            path: z
+                .string()
+                .endsWith(".sb3")
+                .min(1)
+                .describe("Absolute path to the .sb3 project file"),
         },
     },
     async ({path}) => {
-        const activeSocket = turboWarpManager.getActiveSocket()
+        const activeSocket = turboWarpBridge.socket
 
         if (!activeSocket || !activeSocket.connected) {
             return {
@@ -86,6 +99,19 @@ mcpServer.registerTool(
                 ],
             }
         }
+
+        if (!(await FS.stat(path)).isFile()) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `Error: File does not exist at path: ${path}`,
+                    },
+                ],
+            }
+        }
+
+        turboWarpBridge.projectPath = path
 
         return new Promise((resolve) => {
             activeSocket.emit("loadProject", path, (ok: boolean, error?: string) => {
@@ -115,21 +141,32 @@ mcpServer.registerTool(
 
 // Start project tool
 mcpServer.registerTool(
-    "startProject",
+    "start",
     {
         description:
             "Start the currently loaded project in the connected TurboWarp bridge",
         inputSchema: {},
     },
     async () => {
-        const activeSocket = turboWarpManager.getActiveSocket()
+        const activeSocket = turboWarpBridge.socket
 
         if (!activeSocket || !activeSocket.connected) {
             return {
                 content: [
                     {
                         type: "text",
-                        text: "Error: No TurboWarp bridge is currently connected. Load a project first using loadProject.",
+                        text: "Error: No TurboWarp bridge is currently connected.",
+                    },
+                ],
+            }
+        }
+
+        if (!turboWarpBridge.projectPath) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: "Error: No project is currently loaded in the TurboWarp bridge. Use the loadProject tool to load a .sb3 file first.",
                     },
                 ],
             }
@@ -163,14 +200,14 @@ mcpServer.registerTool(
 
 // Stop project tool
 mcpServer.registerTool(
-    "stopProject",
+    "stop",
     {
         description:
             "Stop the currently running project in the connected TurboWarp bridge",
         inputSchema: {},
     },
     async () => {
-        const activeSocket = turboWarpManager.getActiveSocket()
+        const activeSocket = turboWarpBridge.socket
 
         if (!activeSocket || !activeSocket.connected) {
             return {
