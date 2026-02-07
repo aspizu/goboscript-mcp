@@ -6,6 +6,7 @@ export type LogLevel = "log" | "warn" | "error"
 
 /** A block execution event emitted by the running project. */
 export interface BlockExecutedEvent {
+    sprite: string
     level: LogLevel
     value: any
     type: string
@@ -14,11 +15,20 @@ export interface BlockExecutedEvent {
 /** Events sent from the server to connected clients. */
 export interface ServerToClientEvents {
     /** Load a project from an absolute .sb3 path. Ack resolves on success. */
-    loadProject: (path: string, ack: (ok: boolean, error?: string) => void) => void
+    loadProject: (
+        path: string,
+        ack: (result: {ok: boolean; error?: string}) => void,
+    ) => void
     /** Start the currently loaded project. Ack resolves on success. */
-    startProject: (ack: (ok: boolean, error?: string) => void) => void
+    startProject: (ack: (result: {ok: boolean; error?: string}) => void) => void
     /** Stop the currently running project. Ack resolves on success. */
-    stopProject: (ack: (ok: boolean, error?: string) => void) => void
+    stopProject: (ack: (result: {ok: boolean; error?: string}) => void) => void
+    /** Set a variable in the running project. Ack resolves on success. */
+    setVariable: (
+        name: string,
+        value: any,
+        ack: (result: {ok: boolean; error?: string}) => void,
+    ) => void
 }
 
 /** Events sent from a client to the server. */

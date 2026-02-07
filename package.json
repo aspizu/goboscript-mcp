@@ -1,7 +1,9 @@
 {
     "name": "goboscript-mcp",
     "private": true,
-    "workspaces": ["packages/*"],
+    "workspaces": [
+        "packages/*"
+    ],
     "scripts": {
         "fmt": "bunx --bun prettier -uwu ."
     },

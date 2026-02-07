@@ -1,5 +1,10 @@
+import JSON5 from "json5"
 import {io, type Socket} from "socket.io-client"
-import type {ClientToServerEvents, ServerToClientEvents} from "../socket/socket"
+import type {
+    ClientToServerEvents,
+    LogLevel,
+    ServerToClientEvents,
+} from "../socket/socket"
 
 const mcpServerUrl = "http://127.0.0.1:3000"
 
@@ -22,10 +27,10 @@ socket.on("loadProject", async (path, ack) => {
         const file = await response.arrayBuffer()
         await vm.loadProject(file)
         console.log(`[turbowarp-bridge] loaded ${path} (${file.byteLength} bytes)`)
-        ack(true)
+        ack({ok: true})
     } catch (error) {
         console.error("[turbowarp-bridge] Failed to load project", error)
-        ack(false, error instanceof Error ? error.message : String(error))
+        ack({ok: false, error: error instanceof Error ? error.message : String(error)})
     }
 })
 
@@ -33,10 +38,10 @@ socket.on("startProject", (ack) => {
     try {
         vm.greenFlag()
         console.log("[turbowarp-bridge] started project")
-        ack(true)
+        ack({ok: true})
     } catch (error) {
         console.error("[turbowarp-bridge] Failed to start project", error)
-        ack(false, error instanceof Error ? error.message : String(error))
+        ack({ok: false, error: error instanceof Error ? error.message : String(error)})
     }
 })
 
@@ -44,36 +49,37 @@ socket.on("stopProject", (ack) => {
     try {
         vm.stopAll()
         console.log("[turbowarp-bridge] stopped project")
-        ack(true)
+        ack({ok: true})
     } catch (error) {
         console.error("[turbowarp-bridge] Failed to stop project", error)
-        ack(false, error instanceof Error ? error.message : String(error))
+        ack({ok: false, error: error instanceof Error ? error.message : String(error)})
     }
 })
 
-function onLog({content}: {content: any}) {
-    socket.emit("blockExecuted", {
-        level: "log",
-        value: content,
-        type: typeof content,
-    })
-}
+socket.on("setVariable", (name, value, ack) => {
+    try {
+        vm.setVariableValue("Stage", name, JSON5.parse(value))
+        ack({ok: true})
+    } catch (error) {
+        console.error(
+            `[turbowarp-bridge] Failed to set variable ${name} to ${value}`,
+            error,
+        )
+        ack({ok: false, error: error instanceof Error ? error.message : String(error)})
+    }
+})
 
-function onWarn({content}: {content: any}) {
-    socket.emit("blockExecuted", {
-        level: "warn",
-        value: content,
-        type: typeof content,
-    })
-}
-
-function onError({content}: {content: any}) {
-    socket.emit("blockExecuted", {
-        level: "error",
-        value: content,
-        type: typeof content,
-    })
-}
+const blockIntercept =
+    (level: LogLevel) =>
+    ({content}: any, runtime: any) => {
+        const sprite = runtime.thread.target.sprite.name
+        socket.emit("blockExecuted", {
+            sprite: sprite === "Stage" ? "stage" : sprite,
+            level,
+            value: content,
+            type: typeof content,
+        })
+    }
 
 function interceptBlock(opcode: string, callback: (...args: any[]) => void) {
     const block = vm.runtime.getAddonBlock(opcode)
@@ -91,7 +97,7 @@ let injected = false
 vm.runtime.on("PROJECT_LOADED", () => {
     if (injected) return
     injected = true
-    interceptBlock("\u200B\u200Blog\u200B\u200B %s", onLog)
-    interceptBlock("\u200B\u200Bwarn\u200B\u200B %s", onWarn)
-    interceptBlock("\u200B\u200Berror\u200B\u200B %s", onError)
+    interceptBlock("\u200B\u200Blog\u200B\u200B %s", blockIntercept("log"))
+    interceptBlock("\u200B\u200Bwarn\u200B\u200B %s", blockIntercept("warn"))
+    interceptBlock("\u200B\u200Berror\u200B\u200B %s", blockIntercept("error"))
 })

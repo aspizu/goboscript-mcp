@@ -2,27 +2,79 @@ import {turboWarpBridge} from "@goboscript/socket"
 import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js"
 import {StdioServerTransport} from "@modelcontextprotocol/sdk/server/stdio.js"
 import {$, JSON5} from "bun"
+import {err, fromAsyncThrowable, ok, Result} from "neverthrow"
 import * as FS from "node:fs/promises"
 import * as Path from "node:path"
 import {z} from "zod"
 
-// Initialize MCP server
+type McpContent = Array<{type: "text"; text: string}>
+type Socket = NonNullable<typeof turboWarpBridge.socket>
+
+interface ToolResponse {
+    content: McpContent
+    [key: string]: unknown
+}
+
 export const mcpServer = new McpServer(
-    {
-        name: "goboscript-mcp",
-        version: "1.0.0",
-    },
-    {
-        capabilities: {
-            tools: {},
-            resources: {},
-        },
-    },
+    {name: "goboscript-mcp", version: "1.0.0"},
+    {capabilities: {tools: {}, resources: {}}},
 )
 
-// Build tool
+export async function startMCPServer() {
+    const transport = new StdioServerTransport()
+    await mcpServer.connect(transport)
+}
+
+function createSuccessResponse(message: string): ToolResponse {
+    return {
+        content: [{type: "text", text: message}],
+    }
+}
+
+function createErrorResponse(message: string): ToolResponse {
+    return {
+        content: [{type: "text", text: `Error: ${message}`}],
+    }
+}
+
+function createMultiResponse(messages: string[]): ToolResponse {
+    return {
+        content: messages.map((text) => ({type: "text" as const, text})),
+    }
+}
+
+function getActiveSocket(): Result<Socket, ToolResponse> {
+    const activeSocket = turboWarpBridge.socket
+    if (!activeSocket || !activeSocket.connected) {
+        return err(
+            createErrorResponse(
+                "No TurboWarp bridge is currently connected. Is Turbowarp open?",
+            ),
+        )
+    } else {
+        return ok(activeSocket)
+    }
+}
+
+function validateProjectLoaded(): ToolResponse | null {
+    if (!turboWarpBridge.projectPath) {
+        return createErrorResponse(
+            "No project is currently loaded in the TurboWarp bridge. Use the load tool to load a .sb3 file first.",
+        )
+    }
+    return null
+}
+
+async function validateFileExists(path: string): Promise<ToolResponse | null> {
+    const stat = await fromAsyncThrowable(FS.stat)(path)
+    if (stat.isErr() || !stat.value.isFile()) {
+        return createErrorResponse(`File does not exist at path: ${path}`)
+    }
+    return null
+}
+
 mcpServer.registerTool(
-    "build",
+    "buildProject",
     {
         description: "Build the goboscript project into a .sb3 file",
         inputSchema: {
@@ -35,47 +87,46 @@ mcpServer.registerTool(
         },
     },
     async ({path}) => {
-        // Run build command and capture both stdout and stderr
         const result = await $`goboscript build ${path}`
         const stdout = result.stdout.toString("utf-8")
         const stderr = result.stderr.toString("utf-8")
         const success = result.exitCode === 0
 
-        const content = []
+        const messages: string[] = []
 
         if (success) {
-            content.push({
-                type: "text" as const,
-                text: `Build successfully created at: ${path}/${Path.basename(path)}.sb3`,
-            })
+            messages.push(
+                `Build successfully created at: ${path}/${Path.basename(path)}.sb3`,
+            )
         } else {
-            content.push({
-                type: "text" as const,
-                text: `Build failed`,
-            })
+            messages.push("Build failed")
         }
 
         if (stdout) {
-            content.push({
-                type: "text" as const,
-                text: `Output:\n${stdout}`,
-            })
+            messages.push(`Output:\n${stdout}`)
         }
 
         if (stderr) {
-            content.push({
-                type: "text" as const,
-                text: `Errors:\n${stderr}`,
-            })
+            messages.push(`Errors:\n${stderr}`)
         }
 
-        return {content}
+        return createMultiResponse(messages)
     },
 )
 
-// Load project tool
+async function request<T>(
+    promise: Promise<{ok: boolean; error?: string}>,
+): Promise<Result<undefined, string>> {
+    const result = await promise
+    if (result.ok) {
+        return ok(undefined)
+    } else {
+        return err(result.error || "Unknown error")
+    }
+}
+
 mcpServer.registerTool(
-    "load",
+    "loadProject",
     {
         description: "Load a .sb3 project file in the connected TurboWarp bridge",
         inputSchema: {
@@ -87,165 +138,75 @@ mcpServer.registerTool(
         },
     },
     async ({path}) => {
-        const activeSocket = turboWarpBridge.socket
+        const socketResult = getActiveSocket()
+        if (socketResult.isErr()) return socketResult.error
+        const socket = socketResult.value
 
-        if (!activeSocket || !activeSocket.connected) {
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: "Error: No TurboWarp bridge is currently connected",
-                    },
-                ],
-            }
-        }
-
-        if (!(await FS.stat(path)).isFile()) {
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: `Error: File does not exist at path: ${path}`,
-                    },
-                ],
-            }
-        }
+        const fileError = await validateFileExists(path)
+        if (fileError) return fileError
 
         turboWarpBridge.projectPath = path
         turboWarpBridge.events.length = 0
 
-        return new Promise((resolve) => {
-            activeSocket.emit("loadProject", path, (ok: boolean, error?: string) => {
-                if (ok) {
-                    resolve({
-                        content: [
-                            {
-                                type: "text",
-                                text: `Successfully loaded project: ${path}`,
-                            },
-                        ],
-                    })
-                } else {
-                    resolve({
-                        content: [
-                            {
-                                type: "text",
-                                text: `Failed to load project: ${error || "Unknown error"}`,
-                            },
-                        ],
-                    })
-                }
-            })
-        })
+        const result = await request(socket.emitWithAck("loadProject", path))
+
+        if (result.isOk()) {
+            return createSuccessResponse(`Successfully loaded project: ${path}`)
+        } else {
+            return createErrorResponse(`Failed to load project: ${result.error}`)
+        }
     },
 )
 
-// Start project tool
 mcpServer.registerTool(
-    "start",
+    "startProject",
     {
         description:
             "Start the currently loaded project in the connected TurboWarp bridge",
         inputSchema: {},
     },
     async () => {
-        const activeSocket = turboWarpBridge.socket
+        const socketResult = getActiveSocket()
+        if (socketResult.isErr()) return socketResult.error
+        const socket = socketResult.value
 
-        if (!activeSocket || !activeSocket.connected) {
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: "Error: No TurboWarp bridge is currently connected.",
-                    },
-                ],
-            }
-        }
-
-        if (!turboWarpBridge.projectPath) {
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: "Error: No project is currently loaded in the TurboWarp bridge. Use the loadProject tool to load a .sb3 file first.",
-                    },
-                ],
-            }
-        }
+        const projectError = validateProjectLoaded()
+        if (projectError) return projectError
 
         turboWarpBridge.events.length = 0
 
-        return new Promise((resolve) => {
-            activeSocket.emit("startProject", (ok: boolean, error?: string) => {
-                if (ok) {
-                    resolve({
-                        content: [
-                            {
-                                type: "text",
-                                text: "Project started successfully in TurboWarp bridge.",
-                            },
-                        ],
-                    })
-                } else {
-                    resolve({
-                        content: [
-                            {
-                                type: "text",
-                                text: `Failed to start project: ${error || "Unknown error"}`,
-                            },
-                        ],
-                    })
-                }
-            })
-        })
+        const result = await request(socket.emitWithAck("startProject"))
+
+        if (result.isOk()) {
+            return createSuccessResponse(
+                "Project started successfully in TurboWarp bridge.",
+            )
+        } else {
+            return createErrorResponse(`Failed to start project: ${result.error}`)
+        }
     },
 )
 
-// Stop project tool
 mcpServer.registerTool(
-    "stop",
+    "stopProject",
     {
         description:
             "Stop the currently running project in the connected TurboWarp bridge",
         inputSchema: {},
     },
     async () => {
-        const activeSocket = turboWarpBridge.socket
+        const socketResult = getActiveSocket()
+        if (socketResult.isErr()) return socketResult.error
+        const socket = socketResult.value
 
-        if (!activeSocket || !activeSocket.connected) {
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: "Error: No TurboWarp bridge is currently connected.",
-                    },
-                ],
-            }
+        const result = await request(socket.emitWithAck("stopProject"))
+        if (result.isOk()) {
+            return createSuccessResponse(
+                "Project stopped successfully in TurboWarp bridge.",
+            )
+        } else {
+            return createErrorResponse(`Failed to stop project: ${result.error}`)
         }
-
-        return new Promise((resolve) => {
-            activeSocket.emit("stopProject", (ok: boolean, error?: string) => {
-                if (ok) {
-                    resolve({
-                        content: [
-                            {
-                                type: "text",
-                                text: "Project stopped successfully in TurboWarp bridge.",
-                            },
-                        ],
-                    })
-                } else {
-                    resolve({
-                        content: [
-                            {
-                                type: "text",
-                                text: `Failed to stop project: ${error || "Unknown error"}`,
-                            },
-                        ],
-                    })
-                }
-            })
-        })
     },
 )
 
@@ -270,18 +231,9 @@ mcpServer.registerTool(
         },
     },
     async ({skip, limit}) => {
-        const activeSocket = turboWarpBridge.socket
-
-        if (!activeSocket || !activeSocket.connected) {
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: "Error: No TurboWarp bridge is currently connected.",
-                    },
-                ],
-            }
-        }
+        const socketResult = getActiveSocket()
+        if (socketResult.isErr()) return socketResult.error
+        const socket = socketResult.value
 
         const events = turboWarpBridge.events
             .slice(-(skip + limit)) // Get last (skip + limit) items
@@ -292,19 +244,37 @@ mcpServer.registerTool(
 
         const page = events.map((event) => JSON5.stringify(event)).join("\n") + "\n"
 
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `[events in reverse chronological order]\n${page}${remaining > 0 ? `...and ${remaining} more events` : "[end of event log]"}`,
-                },
-            ],
-        }
+        const message = `[events in reverse chronological order]\n${page}${remaining > 0 ? `...and ${remaining} more events` : "[end of event log]"}`
+
+        return createSuccessResponse(message)
     },
 )
 
-// Start MCP server on stdio
-export async function startMCPServer() {
-    const transport = new StdioServerTransport()
-    await mcpServer.connect(transport)
-}
+mcpServer.registerTool(
+    "setVariable",
+    {
+        description:
+            "Set a global variable in the currently running project. The variable MUST be defined in the stage.gs file.",
+        inputSchema: {
+            name: z.string().min(1).describe("Name of the variable to set"),
+            value: z.string().describe("Value to set the variable to"),
+        },
+    },
+    async ({name, value}) => {
+        const socketResult = getActiveSocket()
+        if (socketResult.isErr()) return socketResult.error
+        const socket = socketResult.value
+
+        const projectError = validateProjectLoaded()
+        if (projectError) return projectError
+
+        const result = await request(socket.emitWithAck("setVariable", name, value))
+        if (result.isOk()) {
+            return createSuccessResponse(
+                `Variable set successfully in TurboWarp bridge.`,
+            )
+        } else {
+            return createErrorResponse(`Failed to set variable: ${result.error}`)
+        }
+    },
+)
