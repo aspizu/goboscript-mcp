@@ -43,7 +43,7 @@ Make sure to replace `<path-to-goboscript-mcp>` with the actual path to the clon
 Run opencode and open turbowarp, open the devtools by pressing `ctrl + shift + i` and navigate to the console, you should see a message like this:
 
 ```
-turbowarp-bridge: Connected to MCP server
+[turbowarp-bridge] Connected to MCP server
 ```
 
 Now you can ask the agent to run and debug goboscript projects
