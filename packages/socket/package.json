@@ -1,0 +1,13 @@
+{
+    "name": "@goboscript/socket",
+    "module": "index.ts",
+    "type": "module",
+    "private": true,
+    "exports": {
+        ".": "./index.ts"
+    },
+    "dependencies": {
+        "@socket.io/bun-engine": "^0.1.0",
+        "socket.io": "^4.8.3"
+    }
+}

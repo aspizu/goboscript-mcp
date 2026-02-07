@@ -1,0 +1,14 @@
+{
+    "name": "@goboscript/app",
+    "module": "index.ts",
+    "type": "module",
+    "private": true,
+    "bin": {
+        "goboscript": "index.ts"
+    },
+    "dependencies": {
+        "@goboscript/mcp": "workspace:*",
+        "@goboscript/socket": "workspace:*",
+        "commander": "^13.1.0"
+    }
+}
