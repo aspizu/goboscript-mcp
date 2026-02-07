@@ -64,9 +64,25 @@ socket.on("stopProject", (ack) => {
     }
 })
 
-socket.on("setVariable", (name, value, ack) => {
+function findSpriteID(spriteName: string): string | null {
+    if (spriteName === "stage") {
+        spriteName = "Stage"
+    }
+    for (const target of vm.runtime.targets) {
+        if (target.sprite.name === spriteName) {
+            return target.id
+        }
+    }
+    return null
+}
+
+socket.on("setVariable", (sprite, name, value, ack) => {
     try {
-        vm.setVariableValue("Stage", name, JSON5.parse(value))
+        const spriteID = findSpriteID(sprite)
+        if (!spriteID) {
+            throw new Error(`Sprite "${sprite}" not found`)
+        }
+        vm.setVariableValue(spriteID, name, JSON5.parse(value))
         ack(ok(undefined))
     } catch (error) {
         console.error(
@@ -77,9 +93,13 @@ socket.on("setVariable", (name, value, ack) => {
     }
 })
 
-socket.on("getVariable", (name, ack) => {
+socket.on("getVariable", (sprite, name, ack) => {
     try {
-        ack(ok(JSON5.stringify(vm.getVariableValue("Stage", name))))
+        const spriteID = findSpriteID(sprite)
+        if (!spriteID) {
+            throw new Error(`Sprite "${sprite}" not found`)
+        }
+        ack(ok(JSON5.stringify(vm.getVariableValue(spriteID, name))))
     } catch (error) {
         console.error(`[turbowarp-bridge] Failed to get variable ${name}`, error)
         ack(err(error))

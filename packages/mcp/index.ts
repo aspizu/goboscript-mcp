@@ -261,11 +261,17 @@ mcpServer.registerTool(
         description:
             "Set a global variable in the currently running project. The variable MUST be defined in the stage.gs file.",
         inputSchema: {
+            sprite: z
+                .string()
+                .min(1)
+                .describe(
+                    "Name of the sprite the variable belongs to (stage for stage.gs)",
+                ),
             name: z.string().min(1).describe("Name of the variable to set"),
             value: z.string().describe("Value to set the variable to"),
         },
     },
-    async ({name, value}) => {
+    async ({sprite, name, value}) => {
         const socketResult = getActiveSocket()
         if (socketResult.isErr()) return socketResult.error
         const socket = socketResult.value
@@ -273,7 +279,9 @@ mcpServer.registerTool(
         const projectError = validateProjectLoaded()
         if (projectError) return projectError
 
-        const result = await request(socket.emitWithAck("setVariable", name, value))
+        const result = await request(
+            socket.emitWithAck("setVariable", sprite, name, value),
+        )
         if (result.isOk()) {
             return createSuccessResponse(
                 `Variable set successfully in TurboWarp bridge.`,
@@ -290,10 +298,16 @@ mcpServer.registerTool(
         description:
             "Get the value of a global variable in the currently running project. The variable MUST be defined in the stage.gs file.",
         inputSchema: {
+            sprite: z
+                .string()
+                .min(1)
+                .describe(
+                    "Name of the sprite the variable belongs to (stage for stage.gs)",
+                ),
             name: z.string().min(1).describe("Name of the variable to get"),
         },
     },
-    async ({name}) => {
+    async ({sprite, name}) => {
         const socketResult = getActiveSocket()
         if (socketResult.isErr()) return socketResult.error
         const socket = socketResult.value
@@ -301,7 +315,7 @@ mcpServer.registerTool(
         const projectError = validateProjectLoaded()
         if (projectError) return projectError
 
-        const result = await request(socket.emitWithAck("getVariable", name))
+        const result = await request(socket.emitWithAck("getVariable", sprite, name))
         if (result.isOk()) {
             return createSuccessResponse(
                 `The value of the variable ${name} is: ${result.value}`,

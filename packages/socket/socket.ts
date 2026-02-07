@@ -24,19 +24,22 @@ export interface ServerToClientEvents {
     stopProject: (ack: (result: Result<void>) => void) => void
     /** Set a variable in the running project. Ack resolves on success. */
     setVariable: (
+        sprite: string,
         name: string,
         value: string,
         ack: (result: Result<void>) => void,
     ) => void
-    getVariable: (name: string, ack: (result: Result<string>) => void) => void
+    getVariable: (
+        sprite: string,
+        name: string,
+        ack: (result: Result<string>) => void,
+    ) => void
 }
 
 /** Events sent from a client to the server. */
 export interface ClientToServerEvents {
     /** A block was executed in the running project. */
     blockExecuted: (event: BlockExecutedEvent) => void
-    /** The project has terminated. */
-    projectTerminated: () => void
 }
 
 /** Events used for inter-server communication (unused for now). */
