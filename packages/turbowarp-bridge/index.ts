@@ -50,3 +50,48 @@ socket.on("stopProject", (ack) => {
         ack(false, error instanceof Error ? error.message : String(error))
     }
 })
+
+function onLog({content}: {content: any}) {
+    socket.emit("blockExecuted", {
+        level: "log",
+        value: content,
+        type: typeof content,
+    })
+}
+
+function onWarn({content}: {content: any}) {
+    socket.emit("blockExecuted", {
+        level: "warn",
+        value: content,
+        type: typeof content,
+    })
+}
+
+function onError({content}: {content: any}) {
+    socket.emit("blockExecuted", {
+        level: "error",
+        value: content,
+        type: typeof content,
+    })
+}
+
+function interceptBlock(opcode: string, callback: (...args: any[]) => void) {
+    const block = vm.runtime.getAddonBlock(opcode)
+    if (!block) {
+        console.error(`[turbowarp-bridge] Block with opcode "${opcode}" not found`)
+    }
+    const originalCallback = block.callback
+    block.callback = (...args) => {
+        callback(...args)
+        return originalCallback(...args)
+    }
+}
+
+let injected = false
+vm.runtime.on("PROJECT_LOADED", () => {
+    if (injected) return
+    injected = true
+    interceptBlock("\u200B\u200Blog\u200B\u200B %s", onLog)
+    interceptBlock("\u200B\u200Bwarn\u200B\u200B %s", onWarn)
+    interceptBlock("\u200B\u200Berror\u200B\u200B %s", onError)
+})

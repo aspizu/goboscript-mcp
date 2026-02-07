@@ -19,7 +19,15 @@ export function startSocketServer(options: SocketServerOptions = {}) {
                 return engine.handleRequest(request, server)
             }
             if (url.pathname.startsWith("/project.sb3")) {
-                const buf = await Bun.file(turboWarpBridge.projectPath).arrayBuffer()
+                if (turboWarpBridge.projectPath === null) {
+                    return new Response("No project loaded", {status: 404})
+                }
+                let buf: ArrayBuffer
+                try {
+                    buf = await Bun.file(turboWarpBridge.projectPath).arrayBuffer()
+                } catch (error) {
+                    return new Response("Failed to read project file", {status: 500})
+                }
                 return new Response(buf, {
                     headers: {
                         "Content-Type": "application/octet-stream",

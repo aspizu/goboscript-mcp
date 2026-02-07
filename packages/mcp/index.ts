@@ -1,7 +1,7 @@
 import {turboWarpBridge} from "@goboscript/socket"
 import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js"
 import {StdioServerTransport} from "@modelcontextprotocol/sdk/server/stdio.js"
-import {$} from "bun"
+import {$, JSON5} from "bun"
 import * as FS from "node:fs/promises"
 import * as Path from "node:path"
 import {z} from "zod"
@@ -112,6 +112,7 @@ mcpServer.registerTool(
         }
 
         turboWarpBridge.projectPath = path
+        turboWarpBridge.events.length = 0
 
         return new Promise((resolve) => {
             activeSocket.emit("loadProject", path, (ok: boolean, error?: string) => {
@@ -171,6 +172,8 @@ mcpServer.registerTool(
                 ],
             }
         }
+
+        turboWarpBridge.events.length = 0
 
         return new Promise((resolve) => {
             activeSocket.emit("startProject", (ok: boolean, error?: string) => {
@@ -243,6 +246,29 @@ mcpServer.registerTool(
                 }
             })
         })
+    },
+)
+
+mcpServer.registerResource(
+    "console",
+    "file:///console.txt",
+    {
+        title: "Project Console",
+        description: "Console output of the currently running project",
+        mimeType: "text/plain",
+    },
+    (uri) => {
+        return {
+            contents: [
+                {
+                    uri: uri.toString(),
+                    mimeType: "text/plain",
+                    text: turboWarpBridge.events
+                        .map((event) => JSON5.stringify(event))
+                        .join("\n"),
+                },
+            ],
+        }
     },
 )
 

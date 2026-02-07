@@ -7,7 +7,8 @@ export type LogLevel = "log" | "warn" | "error"
 /** A block execution event emitted by the running project. */
 export interface BlockExecutedEvent {
     level: LogLevel
-    params: string[]
+    value: any
+    type: string
 }
 
 /** Events sent from the server to connected clients. */
@@ -36,33 +37,25 @@ export interface SocketData {}
 
 // Singleton for managing the active TurboWarp bridge connection
 class TurboWarpBridge {
-    private activeSocket: Socket<ClientToServerEvents, ServerToClientEvents> | null =
-        null
-    private _projectPath: string = ""
+    private __socket: Socket<ClientToServerEvents, ServerToClientEvents> | null = null
+    public projectPath: string | null = null
+    public events: BlockExecutedEvent[] = []
 
     get socket(): Socket<ClientToServerEvents, ServerToClientEvents> | null {
-        return this.activeSocket
-    }
-
-    get projectPath(): string {
-        return this._projectPath
-    }
-
-    set projectPath(path: string) {
-        this._projectPath = path
+        return this.__socket
     }
 
     connect(socket: Socket<ClientToServerEvents, ServerToClientEvents>): void {
         // Disconnect any existing connection
-        if (this.activeSocket && this.activeSocket.connected) {
-            this.activeSocket.disconnect()
+        if (this.__socket && this.__socket.connected) {
+            this.__socket.disconnect()
         }
-        this.activeSocket = socket
+        this.__socket = socket
     }
 
     disconnect(): void {
-        this.activeSocket = null
-        this._projectPath = ""
+        this.__socket = null
+        this.projectPath = null
     }
 }
 
@@ -99,5 +92,9 @@ io.on("connection", (socket) => {
 
     socket.on("disconnect", () => {
         turboWarpBridge.disconnect()
+    })
+
+    socket.on("blockExecuted", (event) => {
+        turboWarpBridge.events.push(event)
     })
 })
