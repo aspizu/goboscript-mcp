@@ -45,6 +45,7 @@
         "socket.io-client": "^4.8.3",
       },
       "devDependencies": {
+        "@turbowarp/types-tw": "^0.0.6",
         "@types/bun": "latest",
         "@types/socket.io-client": "^3.0.0",
       },
@@ -69,6 +70,8 @@
     "@socket.io/bun-engine": ["@socket.io/bun-engine@0.1.0", "", { "peerDependencies": { "typescript": "^5" } }, "sha512-B1z6GuAxZlfvjgaa3BHZBOfqHJNfnpebTw15p+Un1HuBL4YM7wUxO9sJa7K4NDTe7XbUBeqLIwTDA5tOOjffog=="],
 
     "@socket.io/component-emitter": ["@socket.io/component-emitter@3.1.2", "", {}, "sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA=="],
+
+    "@turbowarp/types-tw": ["@turbowarp/types-tw@0.0.6", "", {}, "sha512-mQxaUypyHe2D18bBsnbTYzAgRTXpM7Dz2cH1bvh8eGJbQUAWHtKxpKcO9Sz57fYye+6hzlx1XrcuaTgRlCOwiQ=="],
 
     "@types/bun": ["@types/bun@1.3.8", "", { "dependencies": { "bun-types": "1.3.8" } }, "sha512-3LvWJ2q5GerAXYxO2mffLTqOzEu5qnhEAlh48Vnu8WQfnmSwbgagjGZV6BoHKJztENYEDn6QmVd949W4uESRJA=="],
 

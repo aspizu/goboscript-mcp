@@ -12,20 +12,20 @@ export interface BlockExecutedEvent {
 
 /** Events sent from the server to connected clients. */
 export interface ServerToClientEvents {
-    /** A block was executed in the running project. */
-    blockExecuted: (event: BlockExecutedEvent) => void
-    /** The project has terminated. */
-    projectTerminated: () => void
-}
-
-/** Events sent from a client to the server. */
-export interface ClientToServerEvents {
     /** Load a project from an absolute .sb3 path. Ack resolves on success. */
     loadProject: (path: string, ack: (ok: boolean, error?: string) => void) => void
     /** Start the currently loaded project. Ack resolves on success. */
     startProject: (ack: (ok: boolean, error?: string) => void) => void
     /** Stop the currently running project. Ack resolves on success. */
     stopProject: (ack: (ok: boolean, error?: string) => void) => void
+}
+
+/** Events sent from a client to the server. */
+export interface ClientToServerEvents {
+    /** A block was executed in the running project. */
+    blockExecuted: (event: BlockExecutedEvent) => void
+    /** The project has terminated. */
+    projectTerminated: () => void
 }
 
 /** Events used for inter-server communication (unused for now). */
@@ -36,14 +36,14 @@ export interface SocketData {}
 
 // Singleton for managing the active TurboWarp bridge connection
 class TurboWarpConnectionManager {
-    private activeSocket: Socket<ServerToClientEvents, ClientToServerEvents> | null =
+    private activeSocket: Socket<ClientToServerEvents, ServerToClientEvents> | null =
         null
 
-    getActiveSocket(): Socket<ServerToClientEvents, ClientToServerEvents> | null {
+    getActiveSocket(): Socket<ClientToServerEvents, ServerToClientEvents> | null {
         return this.activeSocket
     }
 
-    setActiveSocket(socket: Socket<ServerToClientEvents, ClientToServerEvents>): void {
+    setActiveSocket(socket: Socket<ClientToServerEvents, ServerToClientEvents>): void {
         // Disconnect any existing connection
         if (this.activeSocket && this.activeSocket.connected) {
             this.activeSocket.disconnect()
@@ -86,21 +86,6 @@ io.on("connection", (socket) => {
     }
 
     turboWarpManager.setActiveSocket(socket)
-
-    socket.on("loadProject", (path, ack) => {
-        // TODO: implement project loading
-        ack(true)
-    })
-
-    socket.on("startProject", (ack) => {
-        // TODO: implement project start
-        ack(true)
-    })
-
-    socket.on("stopProject", (ack) => {
-        // TODO: implement project stop
-        ack(true)
-    })
 
     socket.on("disconnect", () => {
         turboWarpManager.clearActiveSocket()

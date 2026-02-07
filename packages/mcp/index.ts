@@ -1,8 +1,8 @@
+import {turboWarpManager} from "@goboscript/socket"
 import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js"
 import {StdioServerTransport} from "@modelcontextprotocol/sdk/server/stdio.js"
 import {$} from "bun"
 import {z} from "zod"
-import {turboWarpManager} from "@goboscript/socket"
 
 // Initialize MCP server
 export const mcpServer = new McpServer(
@@ -104,6 +104,102 @@ mcpServer.registerTool(
                             {
                                 type: "text",
                                 text: `Failed to load project: ${error || "Unknown error"}`,
+                            },
+                        ],
+                    })
+                }
+            })
+        })
+    },
+)
+
+// Start project tool
+mcpServer.registerTool(
+    "startProject",
+    {
+        description:
+            "Start the currently loaded project in the connected TurboWarp bridge",
+        inputSchema: {},
+    },
+    async () => {
+        const activeSocket = turboWarpManager.getActiveSocket()
+
+        if (!activeSocket || !activeSocket.connected) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: "Error: No TurboWarp bridge is currently connected. Load a project first using loadProject.",
+                    },
+                ],
+            }
+        }
+
+        return new Promise((resolve) => {
+            activeSocket.emit("startProject", (ok: boolean, error?: string) => {
+                if (ok) {
+                    resolve({
+                        content: [
+                            {
+                                type: "text",
+                                text: "Project started successfully in TurboWarp bridge.",
+                            },
+                        ],
+                    })
+                } else {
+                    resolve({
+                        content: [
+                            {
+                                type: "text",
+                                text: `Failed to start project: ${error || "Unknown error"}`,
+                            },
+                        ],
+                    })
+                }
+            })
+        })
+    },
+)
+
+// Stop project tool
+mcpServer.registerTool(
+    "stopProject",
+    {
+        description:
+            "Stop the currently running project in the connected TurboWarp bridge",
+        inputSchema: {},
+    },
+    async () => {
+        const activeSocket = turboWarpManager.getActiveSocket()
+
+        if (!activeSocket || !activeSocket.connected) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: "Error: No TurboWarp bridge is currently connected.",
+                    },
+                ],
+            }
+        }
+
+        return new Promise((resolve) => {
+            activeSocket.emit("stopProject", (ok: boolean, error?: string) => {
+                if (ok) {
+                    resolve({
+                        content: [
+                            {
+                                type: "text",
+                                text: "Project stopped successfully in TurboWarp bridge.",
+                            },
+                        ],
+                    })
+                } else {
+                    resolve({
+                        content: [
+                            {
+                                type: "text",
+                                text: `Failed to stop project: ${error || "Unknown error"}`,
                             },
                         ],
                     })
