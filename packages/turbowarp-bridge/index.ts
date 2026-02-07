@@ -9,11 +9,11 @@ const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(mcpServerU
 })
 
 socket.on("connect", () => {
-    console.log("turbowarp-bridge: Connected to MCP server")
+    console.log("[turbowarp-bridge] Connected to MCP server")
 })
 
 socket.on("disconnect", () => {
-    console.log("turbowarp-bridge: Disconnected from MCP server")
+    console.log("[turbowarp-bridge] Disconnected from MCP server")
 })
 
 socket.on("loadProject", async (path, ack) => {
@@ -21,20 +21,21 @@ socket.on("loadProject", async (path, ack) => {
         const response = await fetch(`${mcpServerUrl}/project.sb3`)
         const file = await response.arrayBuffer()
         await vm.loadProject(file)
-        console.log(`turbowarp-bridge: loaded ${path} (${file.byteLength} bytes)`)
+        console.log(`[turbowarp-bridge] loaded ${path} (${file.byteLength} bytes)`)
         ack(true)
     } catch (error) {
-        console.error("turbowarp-bridge: Failed to load project", error)
+        console.error("[turbowarp-bridge] Failed to load project", error)
         ack(false, error instanceof Error ? error.message : String(error))
     }
 })
 
 socket.on("startProject", (ack) => {
     try {
-        vm.start()
+        vm.greenFlag()
+        console.log("[turbowarp-bridge] started project")
         ack(true)
     } catch (error) {
-        console.error("turbowarp-bridge: Failed to start project", error)
+        console.error("[turbowarp-bridge] Failed to start project", error)
         ack(false, error instanceof Error ? error.message : String(error))
     }
 })
@@ -42,9 +43,10 @@ socket.on("startProject", (ack) => {
 socket.on("stopProject", (ack) => {
     try {
         vm.stopAll()
+        console.log("[turbowarp-bridge] stopped project")
         ack(true)
     } catch (error) {
-        console.error("turbowarp-bridge: Failed to stop project", error)
+        console.error("[turbowarp-bridge] Failed to stop project", error)
         ack(false, error instanceof Error ? error.message : String(error))
     }
 })
