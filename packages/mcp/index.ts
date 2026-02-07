@@ -115,13 +115,13 @@ mcpServer.registerTool(
 )
 
 async function request<T>(
-    promise: Promise<{ok: boolean; error?: string}>,
-): Promise<Result<undefined, string>> {
+    promise: Promise<{ok: true; value: T} | {ok: false; error: string}>,
+): Promise<Result<T, string>> {
     const result = await promise
     if (result.ok) {
-        return ok(undefined)
+        return ok(result.value)
     } else {
-        return err(result.error || "Unknown error")
+        return err(result.error)
     }
 }
 
@@ -242,7 +242,12 @@ mcpServer.registerTool(
 
         const remaining = turboWarpBridge.events.length - skip - events.length
 
-        const page = events.map((event) => JSON5.stringify(event)).join("\n") + "\n"
+        const page =
+            events
+                .map((event) =>
+                    JSON5.stringify({...event, value: JSON5.parse(event.value)}),
+                )
+                .join("\n") + "\n"
 
         const message = `[events in reverse chronological order]\n${page}${remaining > 0 ? `...and ${remaining} more events` : "[end of event log]"}`
 
@@ -275,6 +280,34 @@ mcpServer.registerTool(
             )
         } else {
             return createErrorResponse(`Failed to set variable: ${result.error}`)
+        }
+    },
+)
+
+mcpServer.registerTool(
+    "getVariable",
+    {
+        description:
+            "Get the value of a global variable in the currently running project. The variable MUST be defined in the stage.gs file.",
+        inputSchema: {
+            name: z.string().min(1).describe("Name of the variable to get"),
+        },
+    },
+    async ({name}) => {
+        const socketResult = getActiveSocket()
+        if (socketResult.isErr()) return socketResult.error
+        const socket = socketResult.value
+
+        const projectError = validateProjectLoaded()
+        if (projectError) return projectError
+
+        const result = await request(socket.emitWithAck("getVariable", name))
+        if (result.isOk()) {
+            return createSuccessResponse(
+                `The value of the variable ${name} is: ${result.value}`,
+            )
+        } else {
+            return createErrorResponse(`Failed to get variable: ${result.error}`)
         }
     },
 )

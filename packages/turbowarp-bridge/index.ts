@@ -8,6 +8,14 @@ import type {
 
 const mcpServerUrl = "http://127.0.0.1:3000"
 
+function ok<T>(value: T): {ok: true; value: T} {
+    return {ok: true, value}
+}
+
+function err(error: unknown): {ok: false; error: string} {
+    return {ok: false, error: error instanceof Error ? error.message : String(error)}
+}
+
 const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(mcpServerUrl, {
     transports: ["websocket"],
     upgrade: false,
@@ -27,10 +35,10 @@ socket.on("loadProject", async (path, ack) => {
         const file = await response.arrayBuffer()
         await vm.loadProject(file)
         console.log(`[turbowarp-bridge] loaded ${path} (${file.byteLength} bytes)`)
-        ack({ok: true})
+        ack(ok(undefined))
     } catch (error) {
         console.error("[turbowarp-bridge] Failed to load project", error)
-        ack({ok: false, error: error instanceof Error ? error.message : String(error)})
+        ack(err(error))
     }
 })
 
@@ -38,10 +46,10 @@ socket.on("startProject", (ack) => {
     try {
         vm.greenFlag()
         console.log("[turbowarp-bridge] started project")
-        ack({ok: true})
+        ack(ok(undefined))
     } catch (error) {
         console.error("[turbowarp-bridge] Failed to start project", error)
-        ack({ok: false, error: error instanceof Error ? error.message : String(error)})
+        ack(err(error))
     }
 })
 
@@ -49,23 +57,32 @@ socket.on("stopProject", (ack) => {
     try {
         vm.stopAll()
         console.log("[turbowarp-bridge] stopped project")
-        ack({ok: true})
+        ack(ok(undefined))
     } catch (error) {
         console.error("[turbowarp-bridge] Failed to stop project", error)
-        ack({ok: false, error: error instanceof Error ? error.message : String(error)})
+        ack(err(error))
     }
 })
 
 socket.on("setVariable", (name, value, ack) => {
     try {
         vm.setVariableValue("Stage", name, JSON5.parse(value))
-        ack({ok: true})
+        ack(ok(undefined))
     } catch (error) {
         console.error(
             `[turbowarp-bridge] Failed to set variable ${name} to ${value}`,
             error,
         )
-        ack({ok: false, error: error instanceof Error ? error.message : String(error)})
+        ack(err(error))
+    }
+})
+
+socket.on("getVariable", (name, ack) => {
+    try {
+        ack(ok(JSON5.stringify(vm.getVariableValue("Stage", name))))
+    } catch (error) {
+        console.error(`[turbowarp-bridge] Failed to get variable ${name}`, error)
+        ack(err(error))
     }
 })
 
@@ -76,7 +93,7 @@ const blockIntercept =
         socket.emit("blockExecuted", {
             sprite: sprite === "Stage" ? "stage" : sprite,
             level,
-            value: content,
+            value: JSON5.stringify(content),
             type: typeof content,
         })
     }
