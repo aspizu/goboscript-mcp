@@ -1,18 +1,9 @@
 import {server} from "@goboscript/tw-bridge"
-import type {BlockExecutedEvent} from "@goboscript/tw-bridge/socket"
 import {program} from "commander"
 import * as datefns from "date-fns"
 import type {Result} from "neverthrow"
 import Path from "path"
 import * as client from "./client"
-
-function sleep(ms: number) {
-    return new Promise<void>((resolve) => {
-        setTimeout(() => {
-            resolve()
-        }, ms)
-    })
-}
 
 function finish<T>(res: Result<T, Error>): never {
     if (res.isErr()) {
@@ -39,24 +30,20 @@ program
             console.error(res1.error.message)
             process.exit(1)
         }
-        let events: (BlockExecutedEvent | null)[] = []
-        let delay = 200
-        while (events[events.length - 1] !== null) {
-            delay *= 1.1
-            await sleep(delay)
-            const res2 = await client.events()
-            if (res2.isErr()) {
-                console.error(res2.error.message)
-                process.exit(1)
-            }
-            events = res2.value
-        }
-        for (const event of events) {
-            if (event === null) break
-            const time = new Date(event.time)
-            console.log(
-                `[${event.level.toUpperCase()} ${datefns.format(time, "hh:mm:ss")} ${event.sprite}]: ${event.value}`,
-            )
+        if (process.argv.includes("--listen") || process.argv.includes("-l")) {
+            const cleanup = client.onEvents((event) => {
+                if (event === null) {
+                    process.exit(0)
+                }
+                const time = new Date(event.time)
+                console.log(
+                    `[${event.level.toUpperCase()} ${datefns.format(time, "hh:mm:ss")} ${event.sprite}]: ${event.value}`,
+                )
+            })
+            process.on("SIGINT", () => {
+                cleanup()
+                process.exit(0)
+            })
         }
     })
 

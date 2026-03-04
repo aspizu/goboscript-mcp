@@ -1,6 +1,47 @@
 import type {BlockExecutedEvent} from "@goboscript/tw-bridge/socket"
 import {err, ok, Result} from "neverthrow"
 
+type EventCallback = (event: BlockExecutedEvent | null) => void
+
+let abortController: AbortController | null = null
+let eventCallback: EventCallback | null = null
+
+export function onEvents(callback: EventCallback): () => void {
+    eventCallback = callback
+    if (!abortController) {
+        abortController = new AbortController()
+        fetch("http://localhost:9060/events", {signal: abortController.signal})
+            .then(async (res) => {
+                if (!res.body) throw new Error("No body")
+                const reader = res.body.getReader()
+                const decoder = new TextDecoder()
+                let buffer = ""
+                while (true) {
+                    const {done, value} = await reader.read()
+                    if (done) break
+                    buffer += decoder.decode(value, {stream: true})
+                    const lines = buffer.split("\n")
+                    buffer = lines.pop() || ""
+                    for (const line of lines) {
+                        if (line.startsWith("data: ")) {
+                            const data = line.slice(6)
+                            if (eventCallback) {
+                                const parsed = data === "" ? null : JSON.parse(data)
+                                eventCallback(parsed)
+                            }
+                        }
+                    }
+                }
+            })
+            .catch(() => {})
+    }
+    return () => {
+        eventCallback = null
+        abortController?.abort()
+        abortController = null
+    }
+}
+
 async function rpc<T>(
     method: string,
     params: Record<string, unknown>,

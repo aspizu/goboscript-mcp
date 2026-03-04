@@ -3,6 +3,8 @@ import z from "zod"
 import {host} from "./host"
 import {fromResult} from "./jsonresult"
 import {engine} from "./socket"
+import type {BlockExecutedEvent} from "./socket"
+import {addSSEClient, removeSSEClient} from "./events"
 
 async function openSB3(path: string): Promise<Uint8Array | null> {
     if (!(path.endsWith(".sb3") || path.endsWith(".SB3"))) return null
@@ -52,6 +54,7 @@ export class Server {
                 "/socket.io/": (req, server) => engine.handleRequest(req, server),
                 "/get.sb3": (req) => this.getSB3(req),
                 "/rpc": (req) => this.rpc(req),
+                "/events": (req) => this.events(req),
             },
         })
     }
@@ -102,6 +105,36 @@ export class Server {
         if (parsed.data.method == "events") {
             return Response.json(fromResult(ok(host.events)))
         }
+    }
+
+    events(req: Request): Response {
+        const stream = new ReadableStream({
+            start(controller) {
+                const encoder = new TextEncoder()
+                const client = {
+                    write(event: BlockExecutedEvent | null) {
+                        controller.enqueue(
+                            encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
+                        )
+                    },
+                    close() {
+                        removeSSEClient(this.write)
+                    },
+                }
+                addSSEClient(client.write, client.close)
+                req.signal.addEventListener("abort", () => {
+                    client.close()
+                    controller.close()
+                })
+            },
+        })
+        return new Response(stream, {
+            headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                Connection: "keep-alive",
+            },
+        })
     }
 }
 

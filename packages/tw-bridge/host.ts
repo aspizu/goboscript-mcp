@@ -6,6 +6,7 @@ import type {
     ClientToServerEvents,
     ServerToClientEvents,
 } from "./socket"
+import {broadcastEvent} from "./events"
 
 export type HostSocket = Socket<ClientToServerEvents, ServerToClientEvents>
 
@@ -30,16 +31,19 @@ export class Host {
             this.disconnect()
             if (this.events[this.events.length - 1] !== null) {
                 this.events.push(null)
+                broadcastEvent(null)
             }
         })
         socket.on("blockExecuted", (event) => {
             console.log("-*- event -*-")
             this.events.push(event)
+            broadcastEvent(event)
         })
         socket.on("terminated", () => {
             console.log("-*- terminated -*-")
             if (this.events[this.events.length - 1] !== null) {
                 this.events.push(null)
+                broadcastEvent(null)
             }
         })
     }
@@ -64,6 +68,7 @@ export class Host {
         if (!this.socket) return DISCONNECTED_ERROR
         if (this.events[this.events.length - 1] !== null) {
             this.events.push(null)
+            broadcastEvent(null)
         }
         return intoResult(await this.socket.emitWithAck("stop"))
     }
