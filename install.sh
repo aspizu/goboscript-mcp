@@ -22,11 +22,12 @@ fi
 cp packages/tw-bridge-host/dist/index.js "$TW_DIR/userscript.js"
 cp packages/tw-bridge-host/dist/index.css "$TW_DIR/userstyle.css"
 
-# Add shell alias
-ALIAS_LINE="alias tw='bun --bun $(pwd)/packages/tw/index.ts'"
-if grep -qF "$ALIAS_LINE" ~/.bashrc; then
-    echo "'tw' alias already present in ~/.bashrc, skipping."
-else
-    echo "$ALIAS_LINE" >> ~/.bashrc
-    echo "Added 'tw' alias to ~/.bashrc — run 'source ~/.bashrc' to activate."
-fi
+# Install wrapper script to ~/.local/bin
+WRAPPER="$HOME/.local/bin/tw"
+mkdir -p "$HOME/.local/bin"
+cat > "$WRAPPER" <<EOF
+#!/usr/bin/env bash
+exec bun --bun "$(pwd)/packages/tw/index.ts" "\$@"
+EOF
+chmod +x "$WRAPPER"
+echo "Installed 'tw' wrapper script to $WRAPPER"
