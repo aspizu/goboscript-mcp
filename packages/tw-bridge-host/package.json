@@ -1,14 +1,19 @@
 {
-    "name": "@goboscript/turbowarp-bridge",
+    "name": "@goboscript/tw-bridge-host",
     "version": "0.1.0",
     "main": "dist/index.js",
     "type": "module",
     "scripts": {
-        "build": "bun build index.ts --outdir dist --target browser --format iife --minify --outfile index.js"
+        "build": "bun --bun build.ts"
     },
     "dependencies": {
+        "@preact/signals": "^2.8.1",
+        "bun-plugin-tailwind": "^0.1.2",
         "json5": "^2.2.3",
-        "socket.io-client": "^4.8.3"
+        "neverthrow": "^8.2.0",
+        "preact": "^10.28.4",
+        "socket.io-client": "^4.8.3",
+        "tailwindcss": "^4.2.1"
     },
     "devDependencies": {
         "@turbowarp/types-tw": "^0.0.6",

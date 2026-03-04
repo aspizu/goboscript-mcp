@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+#tw-bridge-host-toolbar {
+    @apply fixed bottom-0 left-0 z-43;
+}

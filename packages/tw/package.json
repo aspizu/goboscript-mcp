@@ -7,8 +7,10 @@
         "goboscript": "index.ts"
     },
     "dependencies": {
-        "@goboscript/mcp": "workspace:*",
-        "@goboscript/socket": "workspace:*",
-        "commander": "^13.1.0"
+        "@goboscript/tw-bridge": "workspace:*",
+        "commander": "^13.1.0",
+        "date-fns": "^4.1.0",
+        "json5": "^2.2.3",
+        "neverthrow": "^8.2.0"
     }
 }

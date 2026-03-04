@@ -1,5 +1,4 @@
 {
-    "name": "goboscript-mcp",
     "private": true,
     "workspaces": [
         "packages/*"

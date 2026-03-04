@@ -1,5 +1,7 @@
 # goboscript MCP server
 
+TODO: note about security and system-wide FILE ACCESS!!
+
 ## Installation
 
 Clone the repository to some directory, keep this path in mind for later
